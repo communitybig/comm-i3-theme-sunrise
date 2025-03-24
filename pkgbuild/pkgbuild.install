@@ -51,7 +51,7 @@ apply_theme_to_rofi() {
     local text_color="#f0f0f0"
     local accent_color="#D2691E"  # Cor Laranja do tema Sunrise
     local sel_color="#E5A50A"
-    local border_color="#E5A50A"
+    local border_color="#D2691E"
     
     # Create Rofi theme file
     cat > "$rofi_config_dir/$THEME_NAME.rasi" << EOF
