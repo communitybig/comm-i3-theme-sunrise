@@ -49,7 +49,7 @@ apply_theme_to_rofi() {
     # Estas cores precisam ser ajustadas de acordo com as cores reais do tema Sunrise
     local bg_color="#212B30"
     local text_color="#f0f0f0"
-    local accent_color="#E5A50A"  # Cor amarelo/dourado do tema Sunrise
+    local accent_color="#D2691E"  # Cor Laranja do tema Sunrise
     local sel_color="#E5A50A"
     local border_color="#E5A50A"
     
