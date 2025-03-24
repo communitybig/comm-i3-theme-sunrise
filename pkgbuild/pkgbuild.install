@@ -6,6 +6,205 @@
 THEME_NAME="Sunrise"
 THEMES_DIR="/usr/share/themes/$THEME_NAME"
 
+# Function to backup Rofi configuration
+backup_rofi_config() {
+    local user="$1"
+    local user_home="$2"
+    local timestamp=$(date +%Y%m%d%H%M%S)
+    local backup_dir="$user_home/backup_customizations"
+    local rofi_config_dir="$user_home/.config/rofi"
+    
+    echo "Criando backup das configurações do Rofi..."
+    
+    # Create backup directory if it doesn't exist
+    mkdir -p "$backup_dir"
+    chown "$user:$user" "$backup_dir"
+    
+    # Backup Rofi configuration files
+    if [ -d "$rofi_config_dir" ]; then
+        tar -czf "$backup_dir/rofi-$timestamp.tar.gz" -C "$(dirname "$rofi_config_dir")" "$(basename "$rofi_config_dir")"
+        echo "Backup do Rofi criado: rofi-$timestamp.tar.gz"
+    else
+        echo "Nenhuma configuração do Rofi encontrada para backup."
+    fi
+    
+    # Set ownership for backup files
+    chown -R "$user:$user" "$backup_dir"
+    
+    return 0
+}
+
+# Function to apply Sunrise theme colors to Rofi
+apply_theme_to_rofi() {
+    local user="$1"
+    local user_home="$2"
+    local rofi_config_dir="$user_home/.config/rofi"
+    
+    echo "Aplicando cores do tema $THEME_NAME ao Rofi..."
+    
+    # Create Rofi config directory if it doesn't exist
+    mkdir -p "$rofi_config_dir"
+    
+    # Define theme colors based on Sunrise theme
+    # Estas cores precisam ser ajustadas de acordo com as cores reais do tema Sunrise
+    local bg_color="#212B30"
+    local text_color="#f0f0f0"
+    local accent_color="#E5A50A"  # Cor amarelo/dourado do tema Sunrise
+    local sel_color="#E5A50A"
+    local border_color="#E5A50A"
+    
+    # Create Rofi theme file
+    cat > "$rofi_config_dir/$THEME_NAME.rasi" << EOF
+/* Rofi theme for $THEME_NAME */
+* {
+    background-color:   $bg_color;
+    text-color:         $text_color;
+    
+    accent-color:       $accent_color;
+    selected-color:     $sel_color;
+    border-color:       $border_color;
+}
+
+window {
+    background-color: @background-color;
+    border:           2px;
+    border-color:     @border-color;
+    padding:          15px;
+    width:            40%;
+    border-radius:    8px;
+}
+
+inputbar {
+    background-color: @background-color;
+    padding:          10px;
+    spacing:          8px;
+    border-radius:    6px;
+    border:           1px;
+    border-color:     @border-color;
+}
+
+prompt, entry, element-icon, element-text {
+    vertical-align: 0.5;
+}
+
+entry {
+    text-color: @text-color;
+}
+
+element {
+    padding:          8px;
+    spacing:          8px;
+    border-radius:    4px;
+}
+
+element normal.normal {
+    background-color: @background-color;
+    text-color:       @text-color;
+}
+
+element selected.normal {
+    background-color: @selected-color;
+    text-color:       $bg_color;
+    border-radius:    6px;
+}
+
+element alternate.normal {
+    background-color: @background-color;
+    text-color:       @text-color;
+}
+
+message {
+    padding:          10px;
+    border-radius:    4px;
+    border:           1px;
+    border-color:     @border-color;
+}
+EOF
+
+    # Create or update Rofi configuration to use this theme
+    mkdir -p "$rofi_config_dir"
+    
+    # Check if config.rasi exists
+    if [ ! -f "$rofi_config_dir/config.rasi" ]; then
+        # Create new config
+        cat > "$rofi_config_dir/config.rasi" << EOF
+configuration {
+    modi: "drun,run,window";
+    font: "Noto Sans 11";
+    show-icons: true;
+    icon-theme: "Papirus";
+    drun-display-format: "{name}";
+    disable-history: false;
+    sidebar-mode: false;
+}
+
+@theme "$THEME_NAME"
+EOF
+    else
+        # Update existing config
+        # First, make a backup of original config
+        cp "$rofi_config_dir/config.rasi" "$rofi_config_dir/config.rasi.bak.${THEME_NAME}"
+        
+        # Check if theme line exists
+        if grep -q "@theme" "$rofi_config_dir/config.rasi"; then
+            # Update theme line
+            sed -i "s|@theme.*|@theme \"$THEME_NAME\"|" "$rofi_config_dir/config.rasi"
+        else
+            # Add theme line at the end
+            echo -e "\n@theme \"$THEME_NAME\"" >> "$rofi_config_dir/config.rasi"
+        fi
+    fi
+    
+    # Set correct ownership
+    chown -R "$user:$user" "$rofi_config_dir"
+    
+    echo "Tema Rofi $THEME_NAME aplicado com sucesso!"
+    return 0
+}
+
+# Function to restore original Rofi configuration
+restore_rofi_config() {
+    local user="$1"
+    local user_home="$2"
+    local backup_dir="$user_home/backup_customizations"
+    local rofi_config_dir="$user_home/.config/rofi"
+    
+    echo "Restaurando configuração original do Rofi..."
+    
+    # Check if backup exists
+    if [ -d "$backup_dir" ]; then
+        # Find latest Rofi backup
+        latest_rofi=$(ls -t "$backup_dir"/rofi-*.tar.gz 2>/dev/null | head -1)
+        
+        if [ -n "$latest_rofi" ]; then
+            # Remove current Rofi config
+            if [ -d "$rofi_config_dir" ]; then
+                rm -rf "$rofi_config_dir"
+                echo "Removida configuração atual do Rofi."
+            fi
+            
+            # Restore from backup
+            echo "Restaurando $latest_rofi..."
+            mkdir -p "$user_home/.config"
+            tar -xzf "$latest_rofi" -C "$user_home/.config/"
+            chown -R "$user:$user" "$rofi_config_dir"
+            echo "Configuração original do Rofi restaurada."
+        elif [ -f "$rofi_config_dir/config.rasi.bak.${THEME_NAME}" ]; then
+            # If we have a backup of just the config file, restore it
+            cp "$rofi_config_dir/config.rasi.bak.${THEME_NAME}" "$rofi_config_dir/config.rasi"
+            rm -f "$rofi_config_dir/config.rasi.bak.${THEME_NAME}"
+            rm -f "$rofi_config_dir/$THEME_NAME.rasi"
+            echo "Configuração original do Rofi restaurada a partir do backup local."
+        else
+            echo "Nenhum backup do Rofi encontrado."
+        fi
+    else
+        echo "Diretório de backup não encontrado. Não foi possível restaurar a configuração do Rofi."
+    fi
+    
+    return 0
+}
+
 # Function to backup wallpaper settings for i3
 backup_wallpaper() {
     local user="$1"
@@ -206,212 +405,12 @@ post_install() {
         echo "Nenhum backup de wallpaper encontrado. O wallpaper atual será mantido."
     fi
 
-    echo "Tema Sunrise aplicado com sucesso para i3wm! O wallpaper original foi preservado."
-    return 0
-}
-
     # Apply theme to Rofi
     apply_theme_to_rofi "$user" "$user_home"
 
-    # Function to backup Rofi configuration
-backup_rofi_config() {
-    local user="$1"
-    local user_home="$2"
-    local timestamp=$(date +%Y%m%d%H%M%S)
-    local backup_dir="$user_home/backup_customizations"
-    local rofi_config_dir="$user_home/.config/rofi"
-    
-    echo "Criando backup das configurações do Rofi..."
-    
-    # Create backup directory if it doesn't exist
-    mkdir -p "$backup_dir"
-    chown "$user:$user" "$backup_dir"
-    
-    # Backup Rofi configuration files
-    if [ -d "$rofi_config_dir" ]; then
-        tar -czf "$backup_dir/rofi-$timestamp.tar.gz" -C "$(dirname "$rofi_config_dir")" "$(basename "$rofi_config_dir")"
-        echo "Backup do Rofi criado: rofi-$timestamp.tar.gz"
-    else
-        echo "Nenhuma configuração do Rofi encontrada para backup."
-    fi
-    
-    # Set ownership for backup files
-    chown -R "$user:$user" "$backup_dir"
-    
+    echo "Tema Sunrise aplicado com sucesso para i3wm e Rofi! O wallpaper original foi preservado."
     return 0
 }
-
-# Function to apply Sunrise theme colors to Rofi
-apply_theme_to_rofi() {
-    local user="$1"
-    local user_home="$2"
-    local rofi_config_dir="$user_home/.config/rofi"
-    
-    echo "Aplicando cores do tema $THEME_NAME ao Rofi..."
-    
-    # Create Rofi config directory if it doesn't exist
-    mkdir -p "$rofi_config_dir"
-    
-    # Define theme colors based on Sunrise theme
-    # Estas cores precisam ser ajustadas de acordo com as cores reais do tema Sunrise
-    local bg_color="#212B30"
-    local text_color="#f0f0f0"
-    local accent_color="#E5A50A"  # Cor amarelo/dourado do tema Sunrise
-    local sel_color="#E5A50A"
-    local border_color="#E5A50A"
-    
-    # Create Rofi theme file
-    cat > "$rofi_config_dir/$THEME_NAME.rasi" << EOF
-/* Rofi theme for $THEME_NAME */
-* {
-    background-color:   $bg_color;
-    text-color:         $text_color;
-    
-    accent-color:       $accent_color;
-    selected-color:     $sel_color;
-    border-color:       $border_color;
-}
-
-window {
-    background-color: @background-color;
-    border:           2px;
-    border-color:     @border-color;
-    padding:          15px;
-    width:            40%;
-    border-radius:    8px;
-}
-
-inputbar {
-    background-color: @background-color;
-    padding:          10px;
-    spacing:          8px;
-    border-radius:    6px;
-    border:           1px;
-    border-color:     @border-color;
-}
-
-prompt, entry, element-icon, element-text {
-    vertical-align: 0.5;
-}
-
-entry {
-    text-color: @text-color;
-}
-
-element {
-    padding:          8px;
-    spacing:          8px;
-    border-radius:    4px;
-}
-
-element normal.normal {
-    background-color: @background-color;
-    text-color:       @text-color;
-}
-
-element selected.normal {
-    background-color: @selected-color;
-    text-color:       $bg_color;
-    border-radius:    6px;
-}
-
-element alternate.normal {
-    background-color: @background-color;
-    text-color:       @text-color;
-}
-
-message {
-    padding:          10px;
-    border-radius:    4px;
-    border:           1px;
-    border-color:     @border-color;
-}
-EOF
-
-    # Create or update Rofi configuration to use this theme
-    mkdir -p "$rofi_config_dir"
-    
-    # Check if config.rasi exists
-    if [ ! -f "$rofi_config_dir/config.rasi" ]; then
-        # Create new config
-        cat > "$rofi_config_dir/config.rasi" << EOF
-configuration {
-    modi: "drun,run,window";
-    font: "Noto Sans 11";
-    show-icons: true;
-    icon-theme: "Papirus";
-    drun-display-format: "{name}";
-    disable-history: false;
-    sidebar-mode: false;
-}
-
-@theme "$THEME_NAME"
-EOF
-    else
-        # Update existing config
-        # First, make a backup of original config
-        cp "$rofi_config_dir/config.rasi" "$rofi_config_dir/config.rasi.bak.${THEME_NAME}"
-        
-        # Check if theme line exists
-        if grep -q "@theme" "$rofi_config_dir/config.rasi"; then
-            # Update theme line
-            sed -i "s|@theme.*|@theme \"$THEME_NAME\"|" "$rofi_config_dir/config.rasi"
-        else
-            # Add theme line at the end
-            echo -e "\n@theme \"$THEME_NAME\"" >> "$rofi_config_dir/config.rasi"
-        fi
-    fi
-    
-    # Set correct ownership
-    chown -R "$user:$user" "$rofi_config_dir"
-    
-    echo "Tema Rofi $THEME_NAME aplicado com sucesso!"
-    return 0
-}
-
-# Function to restore original Rofi configuration
-restore_rofi_config() {
-    local user="$1"
-    local user_home="$2"
-    local backup_dir="$user_home/backup_customizations"
-    local rofi_config_dir="$user_home/.config/rofi"
-    
-    echo "Restaurando configuração original do Rofi..."
-    
-    # Check if backup exists
-    if [ -d "$backup_dir" ]; then
-        # Find latest Rofi backup
-        latest_rofi=$(ls -t "$backup_dir"/rofi-*.tar.gz 2>/dev/null | head -1)
-        
-        if [ -n "$latest_rofi" ]; then
-            # Remove current Rofi config
-            if [ -d "$rofi_config_dir" ]; then
-                rm -rf "$rofi_config_dir"
-                echo "Removida configuração atual do Rofi."
-            fi
-            
-            # Restore from backup
-            echo "Restaurando $latest_rofi..."
-            mkdir -p "$user_home/.config"
-            tar -xzf "$latest_rofi" -C "$user_home/.config/"
-            chown -R "$user:$user" "$rofi_config_dir"
-            echo "Configuração original do Rofi restaurada."
-        elif [ -f "$rofi_config_dir/config.rasi.bak.${THEME_NAME}" ]; then
-            # If we have a backup of just the config file, restore it
-            cp "$rofi_config_dir/config.rasi.bak.${THEME_NAME}" "$rofi_config_dir/config.rasi"
-            rm -f "$rofi_config_dir/config.rasi.bak.${THEME_NAME}"
-            rm -f "$rofi_config_dir/$THEME_NAME.rasi"
-            echo "Configuração original do Rofi restaurada a partir do backup local."
-        else
-            echo "Nenhum backup do Rofi encontrado."
-        fi
-    else
-        echo "Diretório de backup não encontrado. Não foi possível restaurar a configuração do Rofi."
-    fi
-    
-    return 0
-}
-
 
 # Function executed before package removal
 pre_remove() {
@@ -514,6 +513,9 @@ post_remove() {
             # Remove the backup file
             rm -f "$wallpaper_backup"
         fi
+        
+        # Restore Rofi configuration
+        restore_rofi_config "$user" "$user_home"
     else
         echo "Diretório de backup $backup_dir não encontrado. Pulando restauração."
     fi
