@@ -47,11 +47,10 @@ apply_theme_to_rofi() {
     
     # Define theme colors based on Sunrise theme
     # Estas cores precisam ser ajustadas de acordo com as cores reais do tema Sunrise
-    local bg_color="#262321"
+    local bg_color="#302a23"
     local text_color="#f0f0f0"
-    local accent_color="#D2691E"  # Cor Laranja do tema Sunrise
-    local sel_color="#D2691E"
-    local border_color="#D2691E"
+    local accent_color="#c45600"  # Cor principal do tema Sunrise
+    local border_color="#c45600"
     
     # Create Rofi theme file
     cat > "$rofi_config_dir/$THEME_NAME.rasi" << EOF
@@ -61,56 +60,81 @@ apply_theme_to_rofi() {
     text-color:         $text_color;
     
     accent-color:       $accent_color;
-    selected-color:     $sel_color;
     border-color:       $border_color;
 }
 
 window {
-    background-color: @background-color;
-    border:           2px;
-    border-color:     @border-color;
-    padding:          15px;
-    width:            40%;
-    border-radius:    8px;
+    location:   center;
+    width:      480;
+
 }
 
 inputbar {
-    background-color: @background-color;
-    padding:          10px;
-    spacing:          8px;
-    border-radius:    6px;
-    border:           1px;
-    border-color:     @border-color;
+    spacing:    8px;
+    padding:    8px;
+
 }
 
 prompt, entry, element-icon, element-text {
     vertical-align: 0.5;
 }
 
-entry {
-    text-color: @text-color;
+prompt {
+    text-color: @accent-color;
+}
+
+textbox {
+    padding:            8px;
+
+}
+
+listview {
+    padding:    4px 0;
+    lines:      8;
+    columns:    1;
+
+    fixed-height:   false;
 }
 
 element {
-    padding:          8px;
-    spacing:          8px;
-    border-radius:    4px;
+    padding:    8px;
+    spacing:    8px;
 }
 
-element normal.normal {
-    background-color: @background-color;
-    text-color:       @text-color;
+element normal normal {
+
 }
 
-element selected.normal {
-    background-color: @selected-color;
-    text-color:       $bg_color;
-    border-radius:    6px;
+element normal urgent {
+    text-color: @accent-color;
 }
 
-element alternate.normal {
-    background-color: @background-color;
-    text-color:       @text-color;
+element normal active {
+    text-color: @accent-color;
+}
+
+element alternate active {
+    text-color: @accent-color;
+}
+
+element selected {
+
+}
+
+element selected normal, element selected active {
+    background-color:   @accent-color;
+}
+
+element selected urgent {
+    background-color:   @accent-color;
+}
+
+element-icon {
+    size:   0.8em;
+}
+
+element-text {
+    text-color: inherit;
 }
 
 message {
@@ -313,7 +337,7 @@ post_install() {
     
     # Backup current GTK settings
     backup_gtk_settings "$user" "$user_home"
-
+    
     # Backup Rofi configuration
     backup_rofi_config "$user" "$user_home"
 
@@ -404,7 +428,7 @@ post_install() {
     else
         echo "Nenhum backup de wallpaper encontrado. O wallpaper atual será mantido."
     fi
-
+    
     # Apply theme to Rofi
     apply_theme_to_rofi "$user" "$user_home"
 
